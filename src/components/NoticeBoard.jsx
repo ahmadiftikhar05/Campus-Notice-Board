@@ -29,13 +29,15 @@ export default function NoticeBoard({ session }) {
 
     const channel = supabase
       .channel('notices-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'notices' },
-        (payload) => {
-          setNotices(prev => [payload.new, ...prev])
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notices' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setNotices(prev => [payload.new, ...prev]);
+        } else if (payload.eventType === 'DELETE') {
+          setNotices(prev => prev.filter(notice => notice.id !== payload.old.id));
+        } else if (payload.eventType === 'UPDATE') {
+          setNotices(prev => prev.map(notice => notice.id === payload.new.id ? payload.new : notice));
         }
-      )
+      })
       .subscribe()
 
     return () => {
